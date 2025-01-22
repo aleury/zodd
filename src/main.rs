@@ -16,7 +16,7 @@ impl Terminal {
         Self { orig, curr }
     }
 
-    fn enable_raw_mode(&mut self, stdin: &std::io::Stdin) -> Result<()> {
+    fn enable_raw_mode(&mut self) -> Result<()> {
         // Disable input flags
         // BRKINT, ICRNL, INPCK, ISTRIP, IXON
         termios::InputFlags::remove(&mut self.curr.input_flags, InputFlags::BRKINT);
@@ -43,14 +43,22 @@ impl Terminal {
         self.curr.control_chars[SpecialCharacterIndices::VTIME as usize] = 1;
 
         // Apply the new settings
+        let stdin = std::io::stdin();
         termios::tcsetattr(stdin.as_fd(), termios::SetArg::TCSAFLUSH, &self.curr)?;
 
         Ok(())
     }
 
-    fn disable_raw_mode(&mut self, stdin: &std::io::Stdin) -> Result<()> {
+    fn disable_raw_mode(&mut self) -> Result<()> {
+        let stdin = std::io::stdin();
         termios::tcsetattr(stdin.as_fd(), termios::SetArg::TCSAFLUSH, &self.orig)?;
         Ok(())
+    }
+}
+
+impl Drop for Terminal {
+    fn drop(&mut self) {
+        self.disable_raw_mode().expect("failed to disable raw mode");
     }
 }
 
@@ -66,10 +74,9 @@ fn editor_read_key(handle: &mut std::io::StdinLock<'_>) -> Result<u8> {
 
 fn main() -> Result<()> {
     let mut terminal = Terminal::new();
+    terminal.enable_raw_mode()?;
 
     let stdin = std::io::stdin();
-    terminal.enable_raw_mode(&stdin)?;
-
     let mut handle = stdin.lock();
 
     loop {
@@ -79,8 +86,6 @@ fn main() -> Result<()> {
             c => print!("{c} ('{}')\r\n", c as char),
         }
     }
-
-    terminal.disable_raw_mode(&stdin)?;
 
     Ok(())
 }
