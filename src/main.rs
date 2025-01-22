@@ -73,16 +73,10 @@ fn main() -> Result<()> {
     let mut handle = stdin.lock();
 
     loop {
-        let c = editor_read_key(&mut handle)?;
-
-        if c == ctrl_key('q') {
-            break;
-        }
-
-        if c.is_ascii_control() {
-            print!("Control character: {c}\r\n");
-        } else {
-            print!("{} ('{}')\r\n", c, c as char);
+        match editor_read_key(&mut handle)? {
+            c if c == ctrl_key('q') => break,
+            c if c.is_ascii_control() => print!("{c}\r\n"),
+            c => print!("{c} ('{}')\r\n", c as char),
         }
     }
 
